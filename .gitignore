@@ -1,0 +1,64 @@
+# ============================================================
+# 公开仓库边界：只提交“定稿交付物 + 证据”
+# 新增文件先确认归属，再显式 git add，不使用 git add -A
+# ============================================================
+
+# ---- 被测系统与本地运行环境 ----
+/jshERP/
+/DataBase/
+/deploy/
+/.backup/
+/_body.json
+
+# ---- 飞书导出：只保留“最后一次导出/缺陷记录表”截图 ----
+/飞书/archive/
+/飞书/导出/测试文件.base
+/飞书/导出/测试文件_附件.zip
+/飞书/导出/重新导出/
+/飞书/导出/缺陷记录表/
+/飞书/导出/执行记录/
+/飞书/导出/最后一次导出/测试文件.base
+
+# ---- 未纳入公开集的本地文档 ----
+/docs/01-项目要求.md
+/docs/02-项目选定.md
+/docs/03-项目部署.md
+/docs/04-项目运行.md
+/docs/05-需求理解.md
+/docs/07-测试执行记录.md
+/docs/08-测试输入包.md
+/docs/09-接口层验证步骤.md
+/docs/缺陷记录表-导入模板.csv
+/docs/assets/
+/docs/测试文档/00-测试执行计划.md
+/docs/测试文档/01-需求规格.md
+/docs/测试文档/02-Q核对清单-侧边栏用.md
+/docs/测试文档/02-测试需求分析.md
+/docs/测试文档/03-测试点-Xmind导入.md
+/docs/测试文档/03-测试点.md
+/docs/测试文档/05-飞书同步与文档核查计划.md
+/docs/测试文档/06-同步核查报告.md
+/docs/测试文档/TODO/
+/docs/测试文档/jshERP系统测试点.xmind
+/docs/测试文档/管伊佳ERP Restful Api.md
+/飞书/04-测试用例-飞书导入.xlsx
+/飞书/04-测试执行-飞书导入.xlsx
+/飞书/04-飞书导入说明.md
+
+# ---- Python / 自动化运行产物（下一阶段） ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+api-tests/.env
+api-tests/reports/
+*.log
+
+# ---- IDE / OS ----
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+Desktop.ini
