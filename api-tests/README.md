@@ -1,6 +1,6 @@
 # jshERP 采购入库 接口自动化
 
-> 状态：M1 骨架（2026-11-09）｜ 设计文档：01-03 已建，04-05 待补
+> 状态：M1.1 骨架（2026-11-09）｜ 设计文档：01-03 已建，04-05 待补
 
 ## 目标
 
@@ -43,5 +43,5 @@ pytest -m smoke --html=reports/report.html --self-contained-html
 ## 约定
 
 - `.env`、`.venv/`、`reports/` 不入库
-- `smoke` 只读；写操作用例后续使用 `write` marker
+- 默认 `pytest` 只跑安全用例；写操作用 `pytest -m write`，配置用 `-m config`（需 `RUN_CONFIG_TESTS=1`），权限用 `-m permission`
 - 失败时先检查后端 9999 是否启动、账号是否正确
