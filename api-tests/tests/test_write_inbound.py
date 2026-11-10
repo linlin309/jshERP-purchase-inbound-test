@@ -10,6 +10,13 @@ from utils.data import build_purchase_inbound, cleanup_bill, find_bills, read_st
 
 pytestmark = pytest.mark.write
 SUITE = "采购入库写流程"
+NOT_EXIST_BARCODE = "API-TEST-BARCODE-NOT-EXIST"
+
+# 判定目标相同（新增失败后主表必须回滚），只是入参与期望业务码不同
+W06_CASES = [
+    pytest.param("empty_rows", "空明细", 8500006, id="empty-rows"),
+    pytest.param("bad_barcode", "无效条码", 8000026, id="bad-barcode"),
+]
 
 
 def _bill(client, number):
@@ -165,3 +172,28 @@ def test_delete_requires_unaudited(force_approval_bill, write_client):
     with allure.step("确认无单据残留"):
         assert find_bills(write_client, number) == [], f"单号 {number} 删除后仍能查到"
     assert read_stock(write_client, meta["depot_id"], meta["bar_code"]) == baseline
+
+
+@allure.suite(SUITE)
+@allure.title("W06 新增失败后主表回滚（{title}）")
+@allure.severity(allure.severity_level.NORMAL)
+@pytest.mark.parametrize("case,title,expected_code", W06_CASES)
+def test_add_failure_rolls_back_head(case, title, expected_code, write_client, demo_data):
+    number = unique_number()
+    body, _ = build_purchase_inbound(demo_data, number)
+    if case == "empty_rows":
+        body["rows"] = "[]"
+    else:
+        rows = json.loads(body["rows"])
+        rows[0]["barCode"] = NOT_EXIST_BARCODE
+        body["rows"] = json.dumps(rows, ensure_ascii=False)
+
+    try:
+        with allure.step("发送新增请求，期望业务失败"):
+            resp = write_client.post("/depotHead/addDepotHeadAndDetail", json=body)
+            assert_business_error(resp, expected_code)
+        with allure.step("按单号确认主表已回滚"):
+            found = find_bills(write_client, number)
+            assert found == [], f"单号 {number} 新增失败后仍存在主表: {found}"
+    finally:
+        cleanup_bill(write_client, number)
