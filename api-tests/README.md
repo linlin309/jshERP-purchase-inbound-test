@@ -1,6 +1,6 @@
 # jshERP 采购入库 接口自动化
 
-> 状态：M1.1 骨架（2026-11-09）｜ 设计文档：01-03 已建，04-05 待补
+> 状态：M2.1 只读契约（2026-11-10）｜ 设计文档：01-03 已建，04-05 待补
 
 ## 目标
 
@@ -36,12 +36,13 @@ pytest -m smoke --html=reports/report.html --self-contained-html
 
 - `docs/`：方案、接口清单、框架设计与后续用例
 - `config.py`：读取 `.env`
-- `client.py`：登录与 HTTP 封装
-- `conftest.py`：session 级 client
-- `tests/`：pytest 用例
+- `client.py`：登录与 HTTP 封装；`READONLY_CALLS` 事前拦截非只读接口
+- `conftest.py`：session 级 `client`、`demo_data`，以及只读事后核对
+- `tests/`：pytest 用例（`test_smoke.py` 冒烟、`test_contract.py` 只读契约）
 
 ## 约定
 
 - `.env`、`.venv/`、`reports/` 不入库
+- 所有请求只走 `client`，`READONLY_CALLS` 白名单外的接口在发送前直接报错；M2 不执行任何写操作
 - 默认 `pytest` 只跑安全用例；写操作用 `pytest -m write`，配置用 `-m config`（需 `RUN_CONFIG_TESTS=1`），权限用 `-m permission`
-- 失败时先检查后端 9999 是否启动、账号是否正确
+- 失败时先检查后端 9999 是否启动、账号是否正确；`前置数据不足` 的跳过说明演示数据缺失，不是用例失败
