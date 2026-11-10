@@ -43,6 +43,10 @@ api-tests/.env
 api-tests/reports/
 *.log
 
+# ---- AI 协作指令：本地约束，不入库 ----
+/api-tests/AGENTS.md
+/api-tests/CLAUDE.md
+
 # ---- IDE / OS ----
 .idea/
 .vscode/
