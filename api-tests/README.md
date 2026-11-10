@@ -1,6 +1,6 @@
 # jshERP 采购入库 接口自动化
 
-> 状态：M2.3 Allure 报告接入（2026-11-10）｜ 设计文档见下方[文档](#文档)索引
+> 状态：M3 写用例已执行（2026-11-10）：W01–W05 全部通过 ｜ 设计文档见下方[文档](#文档)索引
 
 ## 目标
 
@@ -44,9 +44,10 @@ allure open reports/allure-report
 
 - `docs/`：设计文档，见下方文档索引
 - `config.py`：读取 `.env`
-- `client.py`：登录与 HTTP 封装；`READONLY_CALLS` 事前拦截非只读接口
-- `conftest.py`：session 级 `client`、`demo_data`，以及只读事后核对
-- `tests/`：pytest 用例（`test_smoke.py` 冒烟、`test_contract.py` 只读契约、`test_auth.py` 鉴权与会话、`test_exception.py` 异常）
+- `client.py`：登录与 HTTP 封装；`READONLY_CALLS` / `SESSION_CALLS` / `WRITE_CALLS` 事前拦截，写接口需 `allow_write=True`
+- `conftest.py`：只读 fixture（`client`、`demo_data`）与写 fixture（`write_client`、`created_bill`）
+- `utils/data.py`：写用例的单号、请求体、查询与清理
+- `tests/`：pytest 用例（`test_smoke.py` 冒烟、`test_contract.py` 只读契约、`test_auth.py` 鉴权与会话、`test_exception.py` 异常、`test_write_inbound.py` 写流程、`test_write_support.py` 写支撑模拟）
 
 ## 文档
 
@@ -60,6 +61,6 @@ allure open reports/allure-report
 ## 约定
 
 - `.env`、`.venv/`、`reports/` 不入库
-- 所有请求只走 `client`，`READONLY_CALLS` 白名单外的接口在发送前直接报错；M2 不执行任何写操作
-- 默认 `pytest` 只跑安全用例；写操作用 `pytest -m write`，配置用 `-m config`（需 `RUN_CONFIG_TESTS=1`），权限用 `-m permission`
+- 所有请求只走 `client`；未登记接口在发送前报错，写接口只能由 `write_client` 在 `write` 用例中调用
+- 默认 `pytest` 只跑安全用例；写操作用 `pytest -m write`（需单独授权、串行执行），配置用 `-m config`（需 `RUN_CONFIG_TESTS=1`），权限用 `-m permission`
 - 失败时先检查后端 9999 是否启动、账号是否正确；`前置数据不足` 的跳过说明演示数据缺失，不是用例失败

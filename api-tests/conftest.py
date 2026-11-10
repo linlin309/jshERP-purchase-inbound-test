@@ -1,9 +1,10 @@
 import pytest
 import requests
 
-from client import READONLY_CALLS, SESSION_CALLS, ErpClient
+from client import READONLY_CALLS, SESSION_CALLS, WRITE_CALLS, ErpClient
 from config import load_settings
 from utils.assertions import assert_ok
+from utils.data import build_purchase_inbound, cleanup_bill, find_bills, read_flags, unique_number
 
 
 @pytest.fixture(scope="session")
@@ -13,7 +14,11 @@ def settings():
 
 @pytest.fixture(scope="session")
 def client(settings):
-    c = ErpClient(settings)
+    return _client_or_exit(settings)
+
+
+def _client_or_exit(settings, allow_write=False):
+    c = ErpClient(settings, allow_write=allow_write)
     try:
         c.login()
     except requests.ConnectionError as exc:
@@ -22,6 +27,74 @@ def client(settings):
             returncode=2,
         )
     return c
+
+
+@pytest.fixture
+def write_client(settings, request):
+    """写用例的独立会话；marker 只筛选用例，allow_write 才放行写请求。"""
+    if request.node.get_closest_marker("write") is None:
+        pytest.fail("写接口只能由带 write marker 的用例通过 write_client 调用")
+    return _client_or_exit(settings, allow_write=True)
+
+
+@pytest.fixture(scope="session")
+def system_flags(client):
+    return read_flags(client)
+
+
+@pytest.fixture
+def force_approval(system_flags):
+    if system_flags.get("forceApprovalFlag") != "1":
+        pytest.skip("forceApprovalFlag != 1，库存变动时机不同，跳过依赖库存的写用例")
+
+
+@pytest.fixture
+def force_approval_bill(force_approval, created_bill):
+    """库存相关写用例专用：前置不满足时先跳过，不会发送新增请求。"""
+    return created_bill
+
+
+def _recover_failed_add(client, number, add_error):
+    """新增异常时按单号回查并清理；不重发请求，不把查询失败当成单据不存在。"""
+    try:
+        found = find_bills(client, number)
+    except Exception as exc:
+        raise AssertionError(
+            f"新增异常且无法确认单据状态，需人工核查。单号 {number}；"
+            f"新增异常 {type(add_error).__name__}: {add_error}；"
+            f"回查异常 {type(exc).__name__}: {exc}"
+        ) from add_error
+    if not found:
+        raise AssertionError(
+            f"新增请求异常，回查未发现单据。单号 {number}；"
+            f"新增异常 {type(add_error).__name__}: {add_error}"
+        ) from add_error
+    try:
+        cleanup_bill(client, number)
+    except Exception as exc:
+        raise AssertionError(
+            f"新增请求异常且单据已创建，清理失败。单号 {number}；"
+            f"新增异常 {type(add_error).__name__}: {add_error}；"
+            f"清理异常 {type(exc).__name__}: {exc}"
+        ) from add_error
+    raise AssertionError(
+        f"新增请求异常，单据已创建并已清理。单号 {number}；"
+        f"新增异常 {type(add_error).__name__}: {add_error}"
+    ) from add_error
+
+
+@pytest.fixture
+def created_bill(write_client, demo_data, system_flags):
+    if system_flags.get("updateUnitPriceFlag") == "1":
+        pytest.skip("updateUnitPriceFlag=1 时建单会改商品采购价，需隔离商品后再跑写用例")
+    number = unique_number()
+    body, bill = build_purchase_inbound(demo_data, number)
+    try:
+        assert_ok(write_client.post("/depotHead/addDepotHeadAndDetail", json=body))
+    except Exception as exc:
+        _recover_failed_add(write_client, number, exc)
+    yield bill
+    cleanup_bill(write_client, number)
 
 
 def _need_list(value, what):
@@ -91,23 +164,26 @@ def demo_data(client):
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """事后兜底：理论上请求已在 client 事前拦截，这里只做核对和汇总。"""
+    """事后兜底：请求已在 client 事前拦截，这里只做核对和汇总。"""
     calls = [call for c in ErpClient.instances for call in c.calls]
     if not calls:
         return
     readonly = [(m, p) for m, p, _ in calls if (m, p) in READONLY_CALLS]
     session_ops = [(m, p) for m, p, _ in calls if (m, p) in SESSION_CALLS]
+    writes = [(m, p) for m, p, _ in calls if (m, p) in WRITE_CALLS]
     bad = [
         (m, p)
         for m, p, _ in calls
-        if (m, p) not in READONLY_CALLS and (m, p) not in SESSION_CALLS
+        if (m, p) not in READONLY_CALLS
+        and (m, p) not in SESSION_CALLS
+        and (m, p) not in WRITE_CALLS
     ]
     print(
-        f"\n[只读守卫] 本次共 {len(calls)} 次接口调用"
-        f"（只读 {len(readonly)} / 会话操作 {len(session_ops)}）"
+        f"\n[接口守卫] 本次共 {len(calls)} 次接口调用"
+        f"（只读 {len(readonly)} / 会话操作 {len(session_ops)} / 写操作 {len(writes)}）"
     )
     if bad:
-        print(f"[只读守卫] 出现白名单外调用: {bad}")
+        print(f"[接口守卫] 出现未登记调用: {bad}")
         session.exitstatus = 1
     else:
-        print("[只读守卫] 全部命中只读白名单与会话操作")
+        print("[接口守卫] 全部命中已登记接口")

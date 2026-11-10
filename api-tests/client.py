@@ -1,4 +1,5 @@
 import hashlib
+import time
 
 import requests
 
@@ -26,13 +27,26 @@ SESSION_CALLS = {
     ("GET", "/user/logout"),
 }
 
+# 写接口：只有 write_client（allow_write=True）能发；write marker 只是筛选用例，不放行请求
+WRITE_CALLS = {
+    ("POST", "/depotHead/addDepotHeadAndDetail"),
+    ("POST", "/depotHead/batchSetStatus"),
+    ("DELETE", "/depotHead/delete"),
+}
+
+# 同用户同 IP 同秒内两次「单据」日志会被后端强制退出；日志落库点不同，1.1 秒仍可能同秒，取 2 秒
+WRITE_INTERVAL_SECONDS = 2.0
+
 
 class ErpClient:
     # 只读守卫汇总所有客户端，A05 的独立 client 也能被核对到
     instances = []
+    # 所有写客户端共用：跨用例换了 client 实例也要间隔
+    _last_write_at = None
 
-    def __init__(self, settings):
+    def __init__(self, settings, allow_write=False):
         self.settings = settings
+        self.allow_write = allow_write
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
         self.calls = []
@@ -60,11 +74,25 @@ class ErpClient:
     def request(self, method, path, **kwargs):
         method = method.upper()
         path_only = path.split("?")[0]
-        # 事前拦截：只读白名单与会话操作之外的请求不发出去
-        if (method, path_only) not in READONLY_CALLS and (method, path_only) not in SESSION_CALLS:
+        registered = (method, path_only) in READONLY_CALLS or (method, path_only) in SESSION_CALLS
+        # 写接口必须显式 allow_write，共享 client 永远拿不到这个开关
+        allowed = registered or (self.allow_write and (method, path_only) in WRITE_CALLS)
+        if not allowed:
+            if (method, path_only) in WRITE_CALLS:
+                raise RuntimeError(
+                    f"写接口 {method} {path} 需通过 write_client 在 write 用例中调用；"
+                    f"write marker 只筛选用例，不授权请求"
+                )
             raise RuntimeError(
                 f"接口 {method} {path} 不在只读白名单或会话操作内；确认无写副作用后再登记"
             )
+        if self.allow_write and (method, path_only) in WRITE_CALLS:
+            now = time.monotonic()
+            if ErpClient._last_write_at is not None:
+                wait = WRITE_INTERVAL_SECONDS - (now - ErpClient._last_write_at)
+                if wait > 0:
+                    time.sleep(wait)
+            ErpClient._last_write_at = time.monotonic()
         kwargs.setdefault("timeout", self.settings.timeout)
         resp = self.session.request(method, f"{self.settings.base_url}{path}", **kwargs)
         self.calls.append((method, path_only, resp.status_code))
