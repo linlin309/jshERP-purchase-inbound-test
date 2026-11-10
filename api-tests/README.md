@@ -1,6 +1,6 @@
 # jshERP 采购入库 接口自动化
 
-> 状态：M2.1 只读契约、04/05 文档定稿（2026-11-10）｜ 设计文档见下方[文档](#文档)索引
+> 状态：M2.3 Allure 报告接入（2026-11-10）｜ 设计文档见下方[文档](#文档)索引
 
 ## 目标
 
@@ -32,13 +32,21 @@ New-Item -ItemType Directory -Force reports | Out-Null
 pytest -m smoke --html=reports/report.html --self-contained-html
 ```
 
+Allure：
+
+```powershell
+pytest --alluredir=reports/allure-results
+allure generate reports/allure-results -o reports/allure-report --clean
+allure open reports/allure-report
+```
+
 ## 目录
 
 - `docs/`：设计文档，见下方文档索引
 - `config.py`：读取 `.env`
 - `client.py`：登录与 HTTP 封装；`READONLY_CALLS` 事前拦截非只读接口
 - `conftest.py`：session 级 `client`、`demo_data`，以及只读事后核对
-- `tests/`：pytest 用例（`test_smoke.py` 冒烟、`test_contract.py` 只读契约）
+- `tests/`：pytest 用例（`test_smoke.py` 冒烟、`test_contract.py` 只读契约、`test_auth.py` 鉴权与会话、`test_exception.py` 异常）
 
 ## 文档
 

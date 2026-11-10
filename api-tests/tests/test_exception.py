@@ -1,3 +1,11 @@
+import allure
+
+SUITE = "异常与边界"
+
+
+@allure.suite(SUITE)
+@allure.title("E01 查询不存在的单号")
+@allure.severity(allure.severity_level.NORMAL)
 def test_nonexistent_number_returns_error(client):
     number = "API-NOT-EXIST-0000"
     resp = client.get("/depotHead/getDetailByNumber", params={"number": number})

@@ -2,15 +2,21 @@
 
 import json
 
+import allure
 import pytest
 
 from utils.assertions import assert_ok
+
+SUITE = "接口契约"
 
 
 def _number(value, field):
     assert isinstance(value, (int, float)) and not isinstance(value, bool), f"{field} 不是数字: {value!r}"
 
 
+@allure.suite(SUITE)
+@allure.title("C03 供应商下拉返回原始数组")
+@allure.severity(allure.severity_level.NORMAL)
 def test_supplier_select_returns_raw_array(client):
     resp = client.post("/supplier/findBySelect_sup", json={"key": "", "limit": 10})
     assert resp.status_code == 200, f"HTTP {resp.status_code}: {resp.text[:200]}"
@@ -20,6 +26,9 @@ def test_supplier_select_returns_raw_array(client):
     assert {"id", "supplier"} <= set(body[0]), f"供应商字段不符: {sorted(body[0])}"
 
 
+@allure.suite(SUITE)
+@allure.title("C01 仓库列表契约")
+@allure.severity(allure.severity_level.NORMAL)
 def test_depot_list(client):
     depots = assert_ok(client.get("/depot/getAllList"))
     assert isinstance(depots, list), f"仓库列表结构不符: {depots}"
@@ -28,6 +37,9 @@ def test_depot_list(client):
     assert depot.get("name"), f"仓库缺少 name: {depot}"
 
 
+@allure.suite(SUITE)
+@allure.title("C02 结算账户列表契约")
+@allure.severity(allure.severity_level.NORMAL)
 def test_account_list(client):
     data = assert_ok(client.get("/account/getAccount"))
     assert isinstance(data, dict), f"账户结构不符: {data}"
@@ -39,6 +51,9 @@ def test_account_list(client):
     _number(account.get("currentAmount"), "account.currentAmount")
 
 
+@allure.suite(SUITE)
+@allure.title("C04 按条码取商品")
+@allure.severity(allure.severity_level.CRITICAL)
 def test_material_by_barcode(client, demo_data):
     materials = assert_ok(
         client.get(
@@ -57,6 +72,9 @@ def test_material_by_barcode(client, demo_data):
     _number(material.get("taxRate"), "material.taxRate")
 
 
+@allure.suite(SUITE)
+@allure.title("C05 采购入库单列表返回分页结构")
+@allure.severity(allure.severity_level.CRITICAL)
 def test_depot_head_list(client):
     # subType 必传：不传会在 getBillCategory 抛 NPE，返回 code=300 数据查询异常
     search = json.dumps({"type": "入库", "subType": "采购"}, ensure_ascii=False)
@@ -72,6 +90,9 @@ def test_depot_head_list(client):
         assert rows[0].get("id") is not None, f"单据缺少 id: {rows[0]}"
 
 
+@allure.suite(SUITE)
+@allure.title("C06 按单号取单据主表")
+@allure.severity(allure.severity_level.NORMAL)
 def test_depot_head_detail_by_number(client, demo_data):
     data = assert_ok(
         client.get("/depotHead/getDetailByNumber", params={"number": demo_data["header"]["number"]})
@@ -81,6 +102,9 @@ def test_depot_head_detail_by_number(client, demo_data):
     assert data.get("id") == demo_data["header"]["id"], f"id 不一致: {data.get('id')}"
 
 
+@allure.suite(SUITE)
+@allure.title("C07 按仓库和条码查库存")
+@allure.severity(allure.severity_level.CRITICAL)
 def test_stock_by_depot_and_barcode(client, demo_data):
     data = assert_ok(
         client.get(
@@ -95,12 +119,18 @@ def test_stock_by_depot_and_barcode(client, demo_data):
 # 以下 6 条只校准外层结构，字段细节后续阶段再收紧
 
 
+@allure.suite(SUITE)
+@allure.title("C08 按 id 取单据主表（校准）")
+@allure.severity(allure.severity_level.MINOR)
 def test_calibrate_depot_head_info(client, demo_data):
     data = assert_ok(client.get("/depotHead/info", params={"id": demo_data["header"]["id"]}))
     assert isinstance(data, dict), f"info 结构不符: {data}"
     assert isinstance(data.get("info"), dict), f"info 字段不是对象: {data}"
 
 
+@allure.suite(SUITE)
+@allure.title("C09 单据明细（校准）")
+@allure.severity(allure.severity_level.MINOR)
 def test_calibrate_depot_item_detail_list(client, demo_data):
     data = assert_ok(client.get("/depotItem/getDetailList", params={"headerId": demo_data["header"]["id"]}))
     assert isinstance(data, dict), f"明细结构不符: {data}"
@@ -108,6 +138,9 @@ def test_calibrate_depot_item_detail_list(client, demo_data):
     assert isinstance(data.get("total"), int), f"total 不是整数: {data}"
 
 
+@allure.suite(SUITE)
+@allure.title("C10 进销存统计（校准）")
+@allure.severity(allure.severity_level.MINOR)
 def test_calibrate_in_out_stock(client):
     params = {
         "currentPage": 1,
@@ -122,6 +155,9 @@ def test_calibrate_in_out_stock(client):
     assert isinstance(data.get("total"), int), f"total 不是整数: {data}"
 
 
+@allure.suite(SUITE)
+@allure.title("C11 可用序列号列表（校准）")
+@allure.severity(allure.severity_level.MINOR)
 def test_calibrate_serial_number_list(client):
     data = assert_ok(client.post("/serialNumber/getEnableSerialNumberList", json={"page": 1, "rows": 5}))
     assert isinstance(data, dict), f"序列号结构不符: {data}"
@@ -129,6 +165,9 @@ def test_calibrate_serial_number_list(client):
     assert isinstance(data.get("total"), int), f"total 不是整数: {data}"
 
 
+@allure.suite(SUITE)
+@allure.title("C12 关联单据列表（校准）")
+@allure.severity(allure.severity_level.MINOR)
 def test_calibrate_bill_list_by_link_number(client, demo_data):
     resp = client.get("/depotHead/getBillListByLinkNumber", params={"number": demo_data["header"]["number"]})
     assert resp.status_code == 200, f"HTTP {resp.status_code}: {resp.text[:200]}"
@@ -137,6 +176,9 @@ def test_calibrate_bill_list_by_link_number(client, demo_data):
     assert isinstance(body.get("data"), list), f"关联单据应为数组: {body.get('data')}"
 
 
+@allure.suite(SUITE)
+@allure.title("C13 系统配置读取（校准）")
+@allure.severity(allure.severity_level.MINOR)
 def test_calibrate_system_config(client):
     data = assert_ok(client.get("/systemConfig/getCurrentInfo"))
     assert isinstance(data, dict), f"系统配置结构不符: {data}"
