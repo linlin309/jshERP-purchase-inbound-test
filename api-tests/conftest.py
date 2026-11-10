@@ -1,11 +1,9 @@
 import pytest
 import requests
 
-from client import READONLY_CALLS, ErpClient
+from client import READONLY_CALLS, SESSION_CALLS, ErpClient
 from config import load_settings
 from utils.assertions import assert_ok
-
-_CLIENT = None
 
 
 @pytest.fixture(scope="session")
@@ -15,7 +13,6 @@ def settings():
 
 @pytest.fixture(scope="session")
 def client(settings):
-    global _CLIENT
     c = ErpClient(settings)
     try:
         c.login()
@@ -24,7 +21,6 @@ def client(settings):
             f"无法连接后端 {settings.base_url}，请先启动 jshERP-boot（9999）后重试。\n{exc}",
             returncode=2,
         )
-    _CLIENT = c
     return c
 
 
@@ -96,13 +92,22 @@ def demo_data(client):
 
 def pytest_sessionfinish(session, exitstatus):
     """事后兜底：理论上请求已在 client 事前拦截，这里只做核对和汇总。"""
-    if _CLIENT is None:
+    calls = [call for c in ErpClient.instances for call in c.calls]
+    if not calls:
         return
-    calls = _CLIENT.calls
-    bad = [(m, p) for m, p, _ in calls if (m, p) not in READONLY_CALLS]
-    print(f"\n[只读守卫] 本次共 {len(calls)} 次接口调用")
+    readonly = [(m, p) for m, p, _ in calls if (m, p) in READONLY_CALLS]
+    session_ops = [(m, p) for m, p, _ in calls if (m, p) in SESSION_CALLS]
+    bad = [
+        (m, p)
+        for m, p, _ in calls
+        if (m, p) not in READONLY_CALLS and (m, p) not in SESSION_CALLS
+    ]
+    print(
+        f"\n[只读守卫] 本次共 {len(calls)} 次接口调用"
+        f"（只读 {len(readonly)} / 会话操作 {len(session_ops)}）"
+    )
     if bad:
         print(f"[只读守卫] 出现白名单外调用: {bad}")
         session.exitstatus = 1
     else:
-        print("[只读守卫] 全部命中只读白名单")
+        print("[只读守卫] 全部命中只读白名单与会话操作")

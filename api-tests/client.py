@@ -21,13 +21,22 @@ READONLY_CALLS = {
     ("GET", "/systemConfig/getCurrentInfo"),
 }
 
+# 会话状态操作：只改 Redis 里的会话，不改业务数据；不能混进只读白名单
+SESSION_CALLS = {
+    ("GET", "/user/logout"),
+}
+
 
 class ErpClient:
+    # 只读守卫汇总所有客户端，A05 的独立 client 也能被核对到
+    instances = []
+
     def __init__(self, settings):
         self.settings = settings
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
         self.calls = []
+        ErpClient.instances.append(self)
 
     def login(self):
         resp = self.request(
@@ -50,14 +59,15 @@ class ErpClient:
 
     def request(self, method, path, **kwargs):
         method = method.upper()
-        # 事前拦截：只读白名单外的请求不发出去
-        if (method, path.split("?")[0]) not in READONLY_CALLS:
+        path_only = path.split("?")[0]
+        # 事前拦截：只读白名单与会话操作之外的请求不发出去
+        if (method, path_only) not in READONLY_CALLS and (method, path_only) not in SESSION_CALLS:
             raise RuntimeError(
-                f"接口 {method} {path} 不在只读白名单内；确认无写副作用后再加入 client.READONLY_CALLS"
+                f"接口 {method} {path} 不在只读白名单或会话操作内；确认无写副作用后再登记"
             )
         kwargs.setdefault("timeout", self.settings.timeout)
         resp = self.session.request(method, f"{self.settings.base_url}{path}", **kwargs)
-        self.calls.append((method, path.split("?")[0], resp.status_code))
+        self.calls.append((method, path_only, resp.status_code))
         return resp
 
     def get(self, path, **kwargs):

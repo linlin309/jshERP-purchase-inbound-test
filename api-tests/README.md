@@ -1,6 +1,6 @@
 # jshERP 采购入库 接口自动化
 
-> 状态：M2.1 只读契约（2026-11-10）｜ 设计文档：01-03 已建，04-05 待补
+> 状态：M2.1 只读契约、04/05 文档定稿（2026-11-10）｜ 设计文档见下方[文档](#文档)索引
 
 ## 目标
 
@@ -34,11 +34,20 @@ pytest -m smoke --html=reports/report.html --self-contained-html
 
 ## 目录
 
-- `docs/`：方案、接口清单、框架设计与后续用例
+- `docs/`：设计文档，见下方文档索引
 - `config.py`：读取 `.env`
 - `client.py`：登录与 HTTP 封装；`READONLY_CALLS` 事前拦截非只读接口
 - `conftest.py`：session 级 `client`、`demo_data`，以及只读事后核对
 - `tests/`：pytest 用例（`test_smoke.py` 冒烟、`test_contract.py` 只读契约）
+
+## 文档
+
+- [01-方案与架构](docs/01-方案与架构.md)
+- [02-接口清单](docs/02-接口清单.md)
+- [03-框架设计与骨架](docs/03-框架设计与骨架.md)
+- [04-接口测试用例](docs/04-接口测试用例.md)
+- [05-执行与维护](docs/05-执行与维护.md)
+- [06-代码规范](docs/06-代码规范.md)
 
 ## 约定
 
