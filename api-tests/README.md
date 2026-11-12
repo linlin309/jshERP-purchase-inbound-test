@@ -1,6 +1,6 @@
 # jshERP 采购入库 接口自动化
 
-> 状态：M3 写用例 W01–W06（W06 参数化 2 个）已实现，W01–W05 于 2026-11-10 执行通过 ｜ 设计文档见下方[文档](#文档)索引
+> 状态：M3 写用例 W01–W06（W06 参数化 2 个）均已执行通过（2026-11-11）｜ 设计文档见下方[文档](#文档)索引
 
 ## 目标
 
@@ -39,6 +39,15 @@ pytest --alluredir=reports/allure-results
 allure generate reports/allure-results -o reports/allure-report --clean
 allure open reports/allure-report
 ```
+
+## 最近一次执行结果
+
+- 默认安全套件：**28 passed**（只读 32 / 会话 1 / 写 0 次调用），0.96s
+- 写套件：**7 passed**（W01–W05 各 1 个 + W06 两个参数集，21 次写调用），40.5s；执行后 `API-` 前缀单据 0 条
+
+![Allure 概览：写套件 7 个用例，100% 通过](docs/images/allure-summary.png)
+
+上图为 2026-11-11 写套件执行后的 Allure 概览，两组套件分两次执行；用例编号与判定见 [04-接口测试用例](docs/04-接口测试用例.md)。
 
 ## 目录
 
